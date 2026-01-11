@@ -1,0 +1,557 @@
+# ============================================================================
+# GRAPHRAG PROJECT .gitignore
+# ============================================================================
+
+# ============================================================================
+# PYTHON
+# ============================================================================
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+.pybuilder/
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# poetry
+poetry.lock
+
+# pdm
+.pdm.toml
+
+# PEP 582
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/
+
+# ============================================================================
+# DATA FILES (TRÈS IMPORTANT!)
+# ============================================================================
+
+# Raw data downloads (peuvent être très gros!)
+data/raw/*.bz2
+data/raw/*.gz
+data/raw/*.zip
+data/raw/*.tar
+data/raw/*.tar.gz
+data/raw/*.json
+data/raw/*.nt
+data/raw/*.ttl
+data/raw/*.xml
+data/raw/fb15k237/
+data/raw/wikidata-*.nt.bz2
+data/raw/wikidata-*.json.bz2
+data/raw/hotpotqa_*.json
+data/raw/conceptnet-*.csv.gz
+data/raw/wikipedia-*.xml.bz2
+
+# Processed data (peuvent aussi être gros)
+data/processed/*.csv
+data/processed/*.pkl
+data/processed/*.parquet
+data/processed/*.feather
+data/processed/*.h5
+data/processed/*.hdf5
+
+# Temporary data
+data/temp/
+data/tmp/
+data/cache/
+
+# Large datasets
+*.csv
+!data/examples/*.csv  # Garder les exemples
+*.tsv
+*.jsonl
+
+# ============================================================================
+# MODELS & EMBEDDINGS (TRÈS GROS FICHIERS!)
+# ============================================================================
+
+# Model checkpoints
+models/**/*.pt
+models/**/*.pth
+models/**/*.ckpt
+models/**/*.bin
+models/**/*.safetensors
+checkpoints/**/*.pt
+checkpoints/**/*.pth
+checkpoints/**/*.ckpt
+
+# Embeddings (peuvent être plusieurs GB)
+models/embeddings/*.pkl
+models/embeddings/*.npy
+models/embeddings/*.npz
+models/graph/*.pkl
+models/graph/*.npy
+models/text/*.pkl
+models/text/*.npy
+
+# Hugging Face cache
+.cache/
+.huggingface/
+transformers_cache/
+
+# Sentence-transformers cache
+.sentence_transformers/
+
+# FAISS indices
+*.index
+*.faiss
+
+# ============================================================================
+# DATABASES
+# ============================================================================
+
+# Neo4j
+neo4j/
+.neo4j/
+*.db
+*.db.*
+graph.db/
+
+# SQLite
+*.sqlite
+*.sqlite3
+*.db
+
+# ChromaDB
+chroma_db/
+data/chroma_db/
+*.chroma
+
+# MongoDB
+*.mongodb
+
+# ============================================================================
+# LOGS & OUTPUTS
+# ============================================================================
+
+# Log files
+logs/
+*.log
+log/
+*.out
+
+# TensorBoard
+runs/
+tensorboard/
+events.out.tfevents.*
+
+# Weights & Biases
+wandb/
+
+# MLflow
+mlruns/
+mlartifacts/
+
+# DVC
+.dvc/
+*.dvc
+
+# Output files
+outputs/
+output/
+results/*.json
+results/*.csv
+results/*.txt
+
+# ============================================================================
+# IDE & EDITORS
+# ============================================================================
+
+# VSCode
+.vscode/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/*.code-snippets
+*.code-workspace
+
+# PyCharm
+.idea/
+*.iml
+*.iws
+*.ipr
+.idea_modules/
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+[._]*.s[a-v][a-z]
+[._]*.sw[a-p]
+[._]s[a-rt-v][a-z]
+[._]ss[a-gi-z]
+[._]sw[a-p]
+Session.vim
+Sessionx.vim
+.netrwhist
+*~
+tags
+[._]*.un~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# ============================================================================
+# OPERATING SYSTEM
+# ============================================================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# ============================================================================
+# DOCKER
+# ============================================================================
+
+# Docker volumes
+docker-compose.override.yml
+.dockerignore
+
+# ============================================================================
+# CLOUD & CI/CD
+# ============================================================================
+
+# AWS
+.aws/
+*.pem
+
+# Azure
+.azure/
+
+# Google Cloud
+.gcloud/
+*.json
+!data/examples/*.json  # Garder les exemples
+
+# GitHub Actions
+.github/workflows/*.yml.bak
+
+# ============================================================================
+# SECRETS & CREDENTIALS (TRÈS IMPORTANT!)
+# ============================================================================
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+.envrc
+*.env
+
+# API keys
+**/api_keys.txt
+**/secrets.txt
+**/credentials.json
+**/service-account.json
+
+# SSH keys
+*.key
+*.pem
+id_rsa
+id_rsa.pub
+
+# Passwords
+passwords.txt
+*password*.txt
+
+# ============================================================================
+# TEMPORARY & MISC
+# ============================================================================
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+*.swp
+*.swo
+*.bak
+*.backup
+*~
+
+# Archives (sauf si nécessaires)
+*.7z
+*.dmg
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+*.gz
+
+# Compiled source
+*.com
+*.class
+*.dll
+*.exe
+*.o
+*.so
+
+# Packages
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+
+# Media files (si pas nécessaires)
+*.mp4
+*.mov
+*.avi
+*.mp3
+*.wav
+
+# ============================================================================
+# PROJECT SPECIFIC
+# ============================================================================
+
+# Streamlit
+.streamlit/secrets.toml
+.streamlit/config.toml
+
+# Notebooks (si tu veux les garder, commente cette ligne)
+# *.ipynb
+
+# Experimental scripts
+experiments/
+sandbox/
+scratch/
+test_*.py
+debug_*.py
+temp_*.py
+
+# Documentation builds
+docs/_build/
+docs/build/
+
+# Screenshots (si trop gros)
+# screenshots/*.png
+# docs/images/*.png
+
+# ============================================================================
+# KEEP THESE EXAMPLES (don't ignore)
+# ============================================================================
+
+# Keep example files
+!data/examples/
+!data/examples/**
+!docs/examples/
+!notebooks/examples/
+
+# Keep empty directories with .gitkeep
+!**/.gitkeep
+
+# Keep important configs
+!.github/
+!.github/workflows/
+!docker/
+!scripts/
+
+# ============================================================================
+# CUSTOM RULES
+# ============================================================================
+
+# Add your custom ignore rules below:
+
+# Large evaluation results
+results/detailed_*.json
+
+# Debug outputs
+debug/
+debug_output/
+
+# Profiling data
+*.prof
+*.lprof
+
+# Generated reports
+reports/*.html
+reports/*.pdf
+
+# Backup files
+backup/
+backups/
+
+# Old versions
+old/
+deprecated/
+
+# User-specific files
+user_config.yaml
+user_settings.json
+
+# ============================================================================
+# END OF .gitignore
+# ============================================================================
