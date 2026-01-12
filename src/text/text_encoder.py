@@ -4,16 +4,12 @@ import numpy as np
 from tqdm import tqdm
 import pickle
 import torch
+import os
 
 class TextEncoder:
     """Encode le texte en embeddings"""
     
     def __init__(self, model_name: str = 'all-MiniLM-L6-v2'):
-        """
-        Modèles recommandés:
-        - all-MiniLM-L6-v2: Rapide, 384 dim
-        - all-mpnet-base-v2: Meilleur qualité, 768 dim
-        """
         print(f"Chargement du modèle {model_name}...")
         self.model = SentenceTransformer(model_name)
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -31,39 +27,13 @@ class TextEncoder:
         )
         return embeddings
     
-    def encode_entities(self, df: pd.DataFrame, text_column: str = 'name'):
-        """Encode les noms d'entités"""
-        texts = df[text_column].tolist()
-        print(f"Encodage de {len(texts)} entités...")
-        
-        embeddings = self.encode_batch(texts)
-        
-        # Ajouter au DataFrame
-        df['embedding'] = list(embeddings)
-        
-        return df
-    
-    def encode_questions(self, questions: list):
-        """Encode des questions"""
-        print(f"Encodage de {len(questions)} questions...")
-        embeddings = self.encode_batch(questions)
-        return embeddings
-    
     def save_embeddings(self, embeddings, filepath: str):
         """Sauvegarde les embeddings"""
         with open(filepath, 'wb') as f:
             pickle.dump(embeddings, f)
         print(f"✓ Embeddings sauvegardés: {filepath}")
-    
-    def load_embeddings(self, filepath: str):
-        """Charge les embeddings"""
-        with open(filepath, 'rb') as f:
-            embeddings = pickle.load(f)
-        print(f"✓ Embeddings chargés: {filepath}")
-        return embeddings
 
 if __name__ == "__main__":
-    import os
     os.makedirs('C:/Projects/GraphRAG/models/embeddings', exist_ok=True)
     
     # Initialiser encoder
@@ -75,26 +45,56 @@ if __name__ == "__main__":
     
     # Extraire entités uniques
     entities = list(set(df_train['head'].tolist() + df_train['tail'].tolist()))
-    entity_df = pd.DataFrame({'name': entities})
+    print(f"Encodage de {len(entities)} entités...")
     
     # Encoder
-    entity_df = encoder.encode_entities(entity_df)
+    embeddings = encoder.encode_batch(entities)
+    
+    # IMPORTANT: Sauvegarder dans le bon format
+    entity_data = {
+        'entities': entities,
+        'embeddings': embeddings,
+        'entity2id': {e: i for i, e in enumerate(entities)}
+    }
     
     # Sauvegarder
-    entity_df.to_pickle('C:/Projects/GraphRAG/models/embeddings/entity_embeddings.pkl')
-    print(f"✓ {len(entity_df)} entités encodées")
+    output_path = 'C:/Projects/GraphRAG/models/embeddings/entity_embeddings.pkl'
+    encoder.save_embeddings(entity_data, output_path)
+    print(f"✓ {len(entities)} entités encodées")
     
-    # Encoder questions HotpotQA
-    print("\n=== Encodage Questions HotpotQA ===")
-    df_qa = pd.read_csv('C:/Projects/GraphRAG/data/processed/hotpotqa_train_processed.csv')
+    # Vérifier le format
+    print("\n=== Vérification du Format ===")
+    with open(output_path, 'rb') as f:
+        loaded = pickle.load(f)
     
-    questions = df_qa['question'].tolist()[:1000]  # 1000 pour test
-    question_embeddings = encoder.encode_questions(questions)
+    print(f"Type: {type(loaded)}")
+    print(f"Clés: {loaded.keys() if isinstance(loaded, dict) else 'N/A'}")
+    if isinstance(loaded, dict):
+        print(f"Nombre d'entités: {len(loaded['entities'])}")
+        print(f"Shape embeddings: {loaded['embeddings'].shape}")
+        print(f"Exemple d'entité: {loaded['entities'][0]}")
     
-    # Sauvegarder
-    encoder.save_embeddings(
-        question_embeddings,
-        'C:/Projects/GraphRAG/models/embeddings/question_embeddings.pkl'
-    )
+    # Encoder questions HotpotQA (optionnel)
+    hotpot_file = 'C:/Projects/GraphRAG/data/processed/hotpotqa_train_processed.csv'
+    
+    if os.path.exists(hotpot_file):
+        print("\n=== Encodage Questions HotpotQA ===")
+        df_qa = pd.read_csv(hotpot_file)
+        
+        questions = df_qa['question'].tolist()[:1000]  # 1000 pour test
+        question_embeddings = encoder.encode_batch(questions)
+        
+        # Sauvegarder questions
+        question_data = {
+            'questions': questions,
+            'embeddings': question_embeddings
+        }
+        
+        encoder.save_embeddings(
+            question_data,
+            'C:/Projects/GraphRAG/models/embeddings/question_embeddings.pkl'
+        )
+    else:
+        print("\n⚠️  HotpotQA non trouvé (optionnel)")
     
     print("\n✓✓✓ ENCODAGE TERMINÉ ✓✓✓")

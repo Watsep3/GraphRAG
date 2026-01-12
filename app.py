@@ -10,7 +10,8 @@ import pandas as pd
 # Ajouter le chemin src
 sys.path.append('C:/Projects/GraphRAG/src')
 
-from rag.rag_pipeline import GraphRAGPipeline
+# from rag.rag_pipeline import GraphRAGPipeline
+from rag.rag_pipeline_ollama import GraphRAGPipeline
 from neo4j import GraphDatabase
 
 # Configuration de la page
@@ -52,13 +53,26 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# @st.cache_resource
+# def load_pipeline():
+#     """Charge le pipeline (cached pour éviter de recharger)"""
+#     with st.spinner("🔄 Chargement du modèle GraphRAG..."):
+#         try:
+#             pipeline = GraphRAGPipeline(
+#                 embeddings_path='C:/Projects/GraphRAG/models/embeddings/entity_embeddings.pkl'
+#             )
+#             return pipeline, None
+#         except Exception as e:
+#             return None, str(e)
+
 @st.cache_resource
 def load_pipeline():
     """Charge le pipeline (cached pour éviter de recharger)"""
     with st.spinner("🔄 Chargement du modèle GraphRAG..."):
         try:
             pipeline = GraphRAGPipeline(
-                embeddings_path='C:/Projects/GraphRAG/models/embeddings/entity_embeddings.pkl'
+                embeddings_path='C:/Projects/GraphRAG/models/embeddings/entity_embeddings.pkl',
+                ollama_model='llama3.2:3b'  # ← Ajoute ce paramètre
             )
             return pipeline, None
         except Exception as e:
@@ -175,11 +189,17 @@ def main():
             with open('C:/Projects/GraphRAG/models/embeddings/entity_embeddings.pkl', 'rb') as f:
                 import pickle
                 data = pickle.load(f)
-                n_entities = len(data)
+                n_entities = len(data['entities']) if isinstance(data, dict) else len(data)
             
             st.metric("Entités Indexées", f"{n_entities:,}")
         except:
             st.metric("Entités Indexées", "N/A")
+        
+        st.markdown("---")
+        st.markdown("## 🔌 Statut des Services")
+        
+        # Placeholder pour les statuts (sera rempli après chargement du pipeline)
+        status_container = st.empty()
         
         st.markdown("---")
         st.markdown("## 📖 À Propos")
@@ -189,16 +209,29 @@ def main():
         - 🕸️ Encodage graphe (GNN)
         - 🔗 Alignement cross-modal
         - 🎯 RAG hybride
+        - 🦙 Génération Ollama
         """)
-    
+
     # Charger le pipeline
     pipeline, error = load_pipeline()
-    
+
     if error:
         st.error(f"❌ Erreur de chargement: {error}")
         st.stop()
-    
+
     st.success("✅ Modèle chargé avec succès!")
+
+    # Maintenant qu'on a le pipeline, on peut afficher les statuts
+    with status_container.container():
+        col1, col2 = st.columns(2)
+        
+        neo4j_status = pipeline.retriever.neo4j_available
+        ollama_status = pipeline.generator.ollama_available
+        
+        col1.metric("Neo4j", "✅ Actif" if neo4j_status else "❌ Inactif")
+        col2.metric("Ollama", "✅ Actif" if ollama_status else "❌ Inactif")
+    
+ 
     
     # Tabs principales
     tab1, tab2, tab3, tab4 = st.tabs(["🔍 Recherche", "📊 Analyse", "🧪 Benchmark", "📚 Documentation"])
@@ -257,12 +290,17 @@ def main():
             st.markdown("---")
             st.markdown("### 📝 Résultats")
             
-            # Métriques rapides
+           # Métriques rapides
             metric_cols = st.columns(3)
             metric_cols[0].metric("📚 Entités Texte", len(result.get('text_results', [])))
             metric_cols[1].metric("🕸️ Entités Graphe", len(result.get('graph_context', [])))
             metric_cols[2].metric("🎯 Total Unique", len(result.get('entities', [])))
-            
+
+            # Ajouter un indicateur si Neo4j n'est pas utilisé
+            if not result.get('neo4j_used', False):
+                st.warning("⚠️ Neo4j non utilisé - Résultats basés uniquement sur la recherche textuelle")
+
+
             # Résultats textuels
             st.markdown("#### 🔤 Top Résultats (Recherche Textuelle)")
             
@@ -434,21 +472,13 @@ def main():
         - FAISS
         - Streamlit
         
-        ### 👨‍💻 Auteur
+        ### 👨‍💻 Auteurs
         
-        **Salma** - Université Internationale de Rabat (UIR)
+        **Salma Berrada Marwa Ghachi** - Université Internationale de Rabat (UIR)
         Projet de recherche en Big Data & IA
         """)
         
-        st.markdown("---")
-        
-        st.markdown("### 📞 Contact & Support")
-        
-        col1, col2, col3 = st.columns(3)
-        
-        col1.markdown("📧 **Email**\nsalma@example.com")
-        col2.markdown("💻 **GitHub**\ngithub.com/salma/graphrag")
-        col3.markdown("📄 **Paper**\narxiv.org/abs/...")
+
     
     # Footer
     st.markdown("---")

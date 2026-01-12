@@ -50,16 +50,39 @@ class GraphRAGRetriever:
         with open(embeddings_path, 'rb') as f:
             data = pickle.load(f)
         
-        if isinstance(data, dict) and 'embedding' in data.columns:
-            # Format DataFrame avec colonne 'embedding'
-            self.entity_names = data['name'].tolist()
-            embeddings = np.vstack(data['embedding'].values)
-        elif isinstance(data, dict) and 'embeddings' in data:
-            # Format dict avec 'embeddings' et 'entities'
-            embeddings = data['embeddings']
-            self.entity_names = data['entities']
+        # Vérifier le format
+        print(f"Type de données: {type(data)}")
+        
+        if isinstance(data, dict):
+            # Nouveau format (dict avec 'entities' et 'embeddings')
+            if 'entities' in data and 'embeddings' in data:
+                self.entity_names = data['entities']
+                embeddings = data['embeddings']
+                print("✓ Format dict détecté")
+            
+            # Format DataFrame
+            elif 'name' in data and 'embedding' in data:
+                self.entity_names = data['name'].tolist()
+                embeddings = np.vstack(data['embedding'].values)
+                print("✓ Format DataFrame détecté")
+            
+            else:
+                print(f"Clés disponibles: {data.keys()}")
+                raise ValueError("Format d'embeddings non reconnu - clés incorrectes")
+        
+        elif isinstance(data, pd.DataFrame):
+            # Format DataFrame direct
+            if 'name' in data.columns and 'embedding' in data.columns:
+                self.entity_names = data['name'].tolist()
+                embeddings = np.vstack(data['embedding'].values)
+                print("✓ Format DataFrame direct détecté")
+            else:
+                print(f"Colonnes disponibles: {data.columns}")
+                raise ValueError("Format DataFrame incorrect")
+        
         else:
-            raise ValueError("Format d'embeddings non reconnu")
+            print(f"Type non reconnu: {type(data)}")
+            raise ValueError("Format d'embeddings non reconnu - type incorrect")
         
         self.entity_embeddings = embeddings
         
