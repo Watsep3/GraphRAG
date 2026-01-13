@@ -13,6 +13,7 @@ sys.path.append('C:/Projects/GraphRAG/src')
 # from rag.rag_pipeline import GraphRAGPipeline
 from rag.rag_pipeline_ollama import GraphRAGPipeline
 from neo4j import GraphDatabase
+import pickle
 
 # Configuration de la page
 st.set_page_config(
@@ -53,30 +54,40 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# @st.cache_resource
-# def load_pipeline():
-#     """Charge le pipeline (cached pour éviter de recharger)"""
-#     with st.spinner("🔄 Chargement du modèle GraphRAG..."):
-#         try:
-#             pipeline = GraphRAGPipeline(
-#                 embeddings_path='C:/Projects/GraphRAG/models/embeddings/entity_embeddings.pkl'
-#             )
-#             return pipeline, None
-#         except Exception as e:
-#             return None, str(e)
-
 @st.cache_resource
 def load_pipeline():
     """Charge le pipeline (cached pour éviter de recharger)"""
     with st.spinner("🔄 Chargement du modèle GraphRAG..."):
         try:
+            # Essayer le fichier enrichi d'abord
+            embeddings_path = 'C:/Projects/GraphRAG/models/embeddings/entity_embeddings_named.pkl'
+            
+            # Fallback vers fichier original si pas trouvé
+            if not os.path.exists(embeddings_path):
+                embeddings_path = 'C:/Projects/GraphRAG/models/embeddings/entity_embeddings.pkl'
+                st.warning("⚠️ Utilisation des embeddings sans noms enrichis")
+            
             pipeline = GraphRAGPipeline(
-                embeddings_path='C:/Projects/GraphRAG/models/embeddings/entity_embeddings.pkl',
-                ollama_model='llama3.2:3b'  # ← Ajoute ce paramètre
+                embeddings_path=embeddings_path,
+                ollama_model='llama3.2:3b'
             )
             return pipeline, None
         except Exception as e:
             return None, str(e)
+
+@st.cache_data
+def load_entity_names():
+    """Charge le mapping des noms d'entités"""
+    try:
+        with open('C:/Projects/GraphRAG/models/embeddings/entity_embeddings_named.pkl', 'rb') as f:
+            data = pickle.load(f)
+            entity_names = data.get('entity_names', {})
+            return entity_names
+    except FileNotFoundError:
+        return {}
+    except Exception as e:
+        st.warning(f"⚠️ Erreur chargement noms: {e}")
+        return {}
 
 def visualize_graph(entities: list, relations: list = None):
     """Crée une visualisation du sous-graphe"""
@@ -187,7 +198,6 @@ def main():
         # Charger les stats
         try:
             with open('C:/Projects/GraphRAG/models/embeddings/entity_embeddings.pkl', 'rb') as f:
-                import pickle
                 data = pickle.load(f)
                 n_entities = len(data['entities']) if isinstance(data, dict) else len(data)
             
@@ -230,8 +240,6 @@ def main():
         
         col1.metric("Neo4j", "✅ Actif" if neo4j_status else "❌ Inactif")
         col2.metric("Ollama", "✅ Actif" if ollama_status else "❌ Inactif")
-    
- 
     
     # Tabs principales
     tab1, tab2, tab3, tab4 = st.tabs(["🔍 Recherche", "📊 Analyse", "🧪 Benchmark", "📚 Documentation"])
@@ -290,7 +298,7 @@ def main():
             st.markdown("---")
             st.markdown("### 📝 Résultats")
             
-           # Métriques rapides
+            # Métriques rapides
             metric_cols = st.columns(3)
             metric_cols[0].metric("📚 Entités Texte", len(result.get('text_results', [])))
             metric_cols[1].metric("🕸️ Entités Graphe", len(result.get('graph_context', [])))
@@ -300,36 +308,67 @@ def main():
             if not result.get('neo4j_used', False):
                 st.warning("⚠️ Neo4j non utilisé - Résultats basés uniquement sur la recherche textuelle")
 
-
             # Résultats textuels
             st.markdown("#### 🔤 Top Résultats (Recherche Textuelle)")
             
+            # Charger les noms d'entités
+            entity_names = load_entity_names()
+            
             for i, text_res in enumerate(result.get('text_results', [])[:k_text], 1):
+                entity_id = text_res['entity']
+                entity_name = entity_names.get(entity_id, entity_id)
+                
                 with st.container():
-                    col1, col2, col3 = st.columns([0.5, 4, 1])
+                    col1, col2, col3, col4 = st.columns([0.5, 3.5, 2.5, 1])
                     
                     col1.markdown(f"**#{i}**")
-                    col2.markdown(f"**{text_res['entity']}**")
-                    col3.markdown(f"Score: `{text_res['score']:.3f}`")
+                    
+                    # Afficher le nom avec style selon disponibilité
+                    if entity_name.startswith('['):
+                        # ID nettoyé (pas trouvé dans Wikidata)
+                        col2.markdown(f"*{entity_name}*")
+                    else:
+                        # Vrai nom trouvé
+                        col2.markdown(f"**{entity_name}**")
+                    
+                    # Afficher l'ID Freebase
+                    col3.markdown(f"`{entity_id}`")
+                    
+                    # Score
+                    col4.markdown(f"`{text_res['score']:.3f}`")
                     
                     # Bouton pour détails
                     if st.button(f"Voir détails", key=f"detail_text_{i}"):
-                        display_entity_details(text_res['entity'], pipeline)
+                        display_entity_details(entity_id, pipeline)
             
             st.markdown("---")
             
             # Contexte graphe
             st.markdown("#### 🕸️ Contexte du Graphe (Entités Connectées)")
-            
+
             graph_entities = result.get('graph_context', [])[:k_graph]
-            
+
             if graph_entities:
-                # Tableau
+                # Enrichir avec les noms
+                for entity_dict in graph_entities:
+                    entity_id = entity_dict['entity']
+                    entity_dict['name'] = entity_names.get(entity_id, entity_id)
+                
+                # Tableau avec noms
                 df_graph = pd.DataFrame(graph_entities)
+                
+                # Sélectionner les colonnes à afficher
+                display_cols = ['name', 'entity', 'hops'] if 'name' in df_graph.columns else ['entity', 'hops']
+                
                 st.dataframe(
-                    df_graph[['entity', 'hops']].head(10),
+                    df_graph[display_cols].head(10),
                     use_container_width=True,
-                    hide_index=True
+                    hide_index=True,
+                    column_config={
+                        "name": st.column_config.TextColumn("Nom", width="large"),
+                        "entity": st.column_config.TextColumn("ID Freebase", width="medium"),
+                        "hops": st.column_config.NumberColumn("Distance", width="small")
+                    }
                 )
                 
                 # Visualisation du graphe
@@ -358,11 +397,129 @@ def main():
     with tab2:
         st.markdown("## 📊 Analyse des Embeddings")
         
-        st.info("🚧 Fonctionnalité à venir: Visualisation t-SNE des embeddings")
+        st.markdown("""
+        Cette visualisation utilise **t-SNE** (t-Distributed Stochastic Neighbor Embedding) 
+        pour projeter les embeddings 384D dans un espace 2D, révélant la structure sémantique.
+        """)
         
-        # Placeholder pour visualisation future
-        if st.button("Générer Visualisation t-SNE"):
-            st.warning("Cette fonctionnalité sera implémentée dans une version future")
+        # Configuration t-SNE
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            sample_size = st.slider("Échantillon", 500, 5000, 2000, 500)
+        with col2:
+            perplexity = st.slider("Perplexity", 5, 50, 30, 5)
+        with col3:
+            n_clusters = st.slider("Nombre de Clusters", 3, 15, 8, 1)
+        
+        # Bouton de génération
+        if st.button("🎨 Générer Visualisation t-SNE", type="primary"):
+            with st.spinner("⏳ Calcul en cours (cela peut prendre 1-2 minutes)..."):
+                try:
+                    from visualize_tsne import EmbeddingVisualizer
+                    
+                    # Créer visualiseur
+                    viz = EmbeddingVisualizer(
+                        'C:/Projects/GraphRAG/models/embeddings/entity_embeddings.pkl'
+                    )
+                    
+                    # Calculer t-SNE
+                    progress_bar = st.progress(0)
+                    st.info("Étape 1/3: Calcul t-SNE...")
+                    
+                    viz.compute_tsne(
+                        n_components=2,
+                        perplexity=perplexity,
+                        max_iter=1000,
+                        sample_size=sample_size
+                    )
+                    progress_bar.progress(33)
+                    
+                    # Créer visualisation
+                    st.info("Étape 2/3: Génération du graphique...")
+                    fig = viz.create_interactive_plot(
+                        title=f"t-SNE: Entity Embeddings (n={sample_size})"
+                    )
+                    progress_bar.progress(66)
+                    
+                    # Détecter clusters
+                    st.info("Étape 3/3: Détection des clusters...")
+                    clusters = viz.find_clusters(n_clusters=n_clusters)
+                    fig_clusters = viz.plot_clusters()
+                    progress_bar.progress(100)
+                    
+                    # Sauvegarder dans session state
+                    st.session_state['tsne_fig'] = fig
+                    st.session_state['tsne_fig_clusters'] = fig_clusters
+                    st.session_state['clusters_info'] = clusters
+                    
+                    st.success("✅ Visualisation générée!")
+                    
+                except Exception as e:
+                    st.error(f"❌ Erreur: {e}")
+                    import traceback
+                    st.code(traceback.format_exc())
+        
+        # Afficher les visualisations si disponibles
+        if 'tsne_fig' in st.session_state:
+            st.markdown("---")
+            
+            # Tabs pour les deux visualisations
+            viz_tab1, viz_tab2, viz_tab3 = st.tabs(["📊 t-SNE Standard", "🎯 t-SNE avec Clusters", "📋 Analyse des Clusters"])
+            
+            with viz_tab1:
+                st.markdown("### Projection t-SNE des Embeddings")
+                st.plotly_chart(st.session_state['tsne_fig'], use_container_width=True)
+                
+                st.info("""
+                **Interprétation:**
+                - Les entités proches dans l'espace t-SNE ont des embeddings similaires
+                - Les clusters visibles indiquent des groupes sémantiques
+                - Vous pouvez zoomer et survoler les points pour voir les entités
+                """)
+            
+            with viz_tab2:
+                st.markdown("### t-SNE avec Clustering K-Means")
+                st.plotly_chart(st.session_state['tsne_fig_clusters'], use_container_width=True)
+                
+                st.info("""
+                **Clusters colorés:**
+                - Chaque couleur représente un cluster découvert automatiquement
+                - Les clusters peuvent correspondre à des catégories sémantiques
+                """)
+            
+            with viz_tab3:
+                st.markdown("### Analyse des Clusters")
+                
+                if 'clusters_info' in st.session_state:
+                    clusters = st.session_state['clusters_info']
+                    
+                    # Statistiques globales
+                    st.markdown("### 📊 Statistiques Globales")
+                    
+                    col1, col2, col3 = st.columns(3)
+                    
+                    total_entities = sum(info['size'] for info in clusters.values())
+                    avg_cluster_size = total_entities / len(clusters)
+                    sizes = [info['size'] for info in clusters.values()]
+                    largest_size = max(sizes)
+                    
+                    col1.metric("Total Entités", total_entities)
+                    col2.metric("Taille Moyenne", f"{avg_cluster_size:.0f}")
+                    col3.metric("Plus Grand Cluster", largest_size)
+                    
+                    st.markdown("---")
+                    
+                    # Afficher les clusters
+                    for cluster_name, info in clusters.items():
+                        with st.expander(f"{cluster_name} - {info['size']} entités"):
+                            st.markdown(f"**Taille:** {info['size']} entités")
+                            st.markdown("**Entités représentatives:**")
+                            for entity in info['entities'][:10]:
+                                st.markdown(f"- `{entity}`")
+        
+        else:
+            st.info("👆 Cliquez sur le bouton ci-dessus pour générer la visualisation t-SNE")
     
     # TAB 3: BENCHMARK
     with tab3:
@@ -435,50 +592,57 @@ def main():
         
         #### 4. RAG Pipeline
         - **Retriever**: FAISS + Neo4j
-        - **Generator**: Formatage de contexte (extensible avec LLM)
+        - **Generator**: Ollama LLM (llama3.2:3b)
         - **Stratégie**: Recherche hybride texte-graphe
         
         ### 📊 Datasets Utilisés
         
-        - **FB15k-237**: Graphe de connaissances (15K entités, 237 relations)
-        - **HotpotQA**: Questions multi-hop (90K+ questions)
-        - **Wikidata**: Graphe de connaissances mondial (optionnel)
+        - **FB15k-237**: Graphe de connaissances (14,505 entités, 237 relations)
+        - **HotpotQA**: Questions multi-hop
+        - **Wikidata**: Enrichissement des noms d'entités
         
         ### 🚀 Utilisation
 ```python
-        from rag.rag_pipeline import GraphRAGPipeline
-        
-        # Initialiser
-        pipeline = GraphRAGPipeline(
-            embeddings_path='path/to/embeddings.pkl'
-        )
-        
-        # Requête
-        result = pipeline.query("What is AI?", k_text=5, k_graph=10)
-        print(result['answer'])
+from rag.rag_pipeline_ollama import GraphRAGPipeline
+
+# Initialiser
+pipeline = GraphRAGPipeline(
+    embeddings_path='path/to/embeddings.pkl',
+    ollama_model='llama3.2:3b'
+)
+
+# Requête
+result = pipeline.query("What is AI?", k_text=5, k_graph=10)
+print(result['answer'])
 ```
         
         ### 📈 Performances
         
-        - **Recall@5**: ~0.75
-        - **MRR**: ~0.68
+        - **Recall@5**: 60.0%
+        - **MRR**: 80.9%
+        - **Precision@5**: 20.8%
+        - **F1@5**: 30.5%
         - **Temps de recherche**: <100ms
         
         ### 🔧 Technologies
         
-        - PyTorch + PyTorch Geometric
-        - Sentence-Transformers
-        - Neo4j
-        - FAISS
+        - PyTorch 2.5.1 + PyTorch Geometric
+        - Sentence-Transformers (all-MiniLM-L6-v2)
+        - Neo4j 5.x (272K+ relations)
+        - FAISS (14K+ embeddings)
+        - Ollama (llama3.2:3b local)
         - Streamlit
         
         ### 👨‍💻 Auteurs
         
-        **Salma Berrada Marwa Ghachi** - Université Internationale de Rabat (UIR)
-        Projet de recherche en Big Data & IA
-        """)
+        **Salma Berrada & Marwa Ghachi**
         
-
+        Université Internationale de Rabat (UIR)
+        
+        Projet de Fin d'Études - Big Data & IA - Semestre 9 (2025-2026)
+        
+        Superviseur: Prof. Hakim Hafidi
+        """)
     
     # Footer
     st.markdown("---")
